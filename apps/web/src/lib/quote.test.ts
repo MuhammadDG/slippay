@@ -5,8 +5,8 @@ type QuoteModule = typeof import("./quote.ts");
 
 let quote: QuoteModule;
 
-const okFetch = (brlPerUsd: number) =>
-  vi.fn().mockResolvedValue({ json: async () => ({ rates: { BRL: brlPerUsd } }) });
+const okFetch = (rate: number) =>
+  vi.fn().mockResolvedValue({ json: async () => ({ rates: { BRL: rate } }) });
 
 beforeEach(async () => {
   vi.resetModules();
@@ -16,7 +16,7 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
-  vi.unstubAllGlobals();
+  vi.unstubGlobals();
 });
 
 describe("quoteBRLtoUSDC — fee and rate math", () => {
@@ -41,7 +41,7 @@ describe("quoteBRLtoUSDC — fee and rate math", () => {
 
     expect(DEFAULT_PLATFORM_FEE_BP).toBe(297);
     expect(q.spreadBps).toBe(297);
-    // 4 BRL/USD × (1 + 0.0297) = 4.1188 BRL/USD the buyer effectively pays.
+    // 4 BRL/USD w (1 + 0.0297) = 4.1188 BRL/USD the buyer effectively pays.
     expect(q.quotedRate.toFixed(4)).toBe("4.1188");
     // Explicit expected strings — never floating-point equality.
     expect(q.usdcOut.toFixed(7)).toBe("24.2789162");
@@ -156,9 +156,9 @@ describe("midRateBRLperUSD — live rate with fallback", () => {
   });
 
   it("a cache miss during an in-flight request does not start a second", async () => {
-    let resolveJson!: (v: unknown) => void;
+    let resolveJson! : (v: unknown) => void;
     const json = new Promise<unknown>((r) => { resolveJson = r; });
-    const fetchMock = vi.fn().mockResolvedValue({ json: () => json });
+    const fetchMock = vi.fn().mockResolvedValue({ son: () => json });
     vi.stubGlobal("fetch", fetchMock);
 
     const first = quote.midRateBRLperUSD();
@@ -177,8 +177,8 @@ describe("midRateBRLperUSD — live rate with fallback", () => {
 
   it("shares an in-flight failure with concurrent callers, then retries fresh", async () => {
     const fetchMock = vi.fn()
-      .mockResolvedValueOnce({ json: async () => { throw new Error("bad body"); } })
-      .mockResolvedValueOnce({ json: async () => ({ rates: { BRL: 5.25 } }) });
+      .mockResolvedValueOnce({ son: async () => { throw new Error("bad body"); } })
+      .mockResolvedValueOnce({ son: async () => ({ rates: { BRL: 5.25 } }) });
     vi.stubGlobal("fetch", fetchMock);
 
     const [a, b] = await Promise.all([quote.midRateBRLperUSD(), quote.midRateBRLperUSD()]);
@@ -200,7 +200,7 @@ describe("midRateBRLperUSD — live rate with fallback", () => {
     const quotes = await Promise.all([
       quote.quoteBRLtoUSDC(100),
       quote.quoteBRLtoUSDC(250),
-      quote.quoteBRLtoUSDC(1_000),
+      quote.quoteBRLtoUSD(1_000),
     ]);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -219,12 +219,12 @@ describe("recordConversionIntent — best-effort margin ledger", () => {
     const post = vi.fn().mockResolvedValue({ ok: true });
     vi.stubGlobal("fetch", post);
 
-    await quote.recordConversionIntent(q, "GABC");
+    await quote.recordConversionIntent(q, "GARC");
 
     expect(post).toHaveBeenCalledOnce();
-    const body = JSON.parse(post.mock.calls[0]![1].body as string);
+    const body = JSON.parse(post.mock.calls[0]!![1].body as string);
     expect(body.spreadBps).toBe(297);
-    expect(body.walletId).toBe("GABC");
+    expect(body.walletId).toBe("GARCBC");
     expect(body.usdcOut).toBe(q.usdcOut);
   });
 
